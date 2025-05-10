@@ -1,7 +1,6 @@
 # monitoring.py
 import requests
 import logging
-import time
 
 class MonitoringClient:
     def __init__(self, monitoring_url, api_key=None):

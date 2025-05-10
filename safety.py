@@ -1,8 +1,4 @@
 # safety.py
-import os
-import socket
-import re
-
 class SafetyChecker:
     def __init__(self):
         # Load production environment identifiers
