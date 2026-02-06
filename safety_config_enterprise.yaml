@@ -1,0 +1,164 @@
+# Enterprise Safety Configuration for Tiny Chaos Framework
+# Strict policies for enterprise environments with comprehensive governance
+
+# Global safety settings
+global:
+  max_duration: 300  # 5 minutes - conservative for enterprise
+  require_confirmation: true
+  auto_detect_environment: true
+
+# Environment detection rules
+environment_detection:
+  cloud_providers:
+    aws:
+      metadata_url: "http://169.254.169.254/latest/meta-data/"
+      timeout: 2
+    gcp:
+      metadata_url: "http://metadata.google.internal/computeMetadata/v1/"
+      timeout: 2
+    azure:
+      metadata_url: "http://169.254.169.254/metadata/instance/"
+      timeout: 2
+
+  classification_rules:
+    - name: "production"
+      patterns:
+        hostname: ["prod-*", "*-prod", "*production*", "*prd*", "*live*"]
+        environment_vars: ["ENVIRONMENT=prod", "ENVIRONMENT=production", "STAGE=prod", "ENV=prd"]
+        cloud_tags: ["environment=production", "stage=prod", "tier=production"]
+
+    - name: "staging"
+      patterns:
+        hostname: ["staging-*", "*-staging", "*stage*", "*stg*", "*preprod*"]
+        environment_vars: ["ENVIRONMENT=staging", "STAGE=staging", "ENV=stg"]
+        cloud_tags: ["environment=staging", "stage=staging"]
+
+    - name: "development"
+      patterns:
+        hostname: ["dev-*", "*-dev", "*development*"]
+        environment_vars: ["ENVIRONMENT=dev", "STAGE=development", "ENV=dev"]
+        cloud_tags: ["environment=development", "stage=dev"]
+
+    - name: "test"
+      patterns:
+        hostname: ["test-*", "*-test", "*testing*", "*qa*"]
+        environment_vars: ["ENVIRONMENT=test", "STAGE=test", "ENV=test", "ENV=qa"]
+        cloud_tags: ["environment=test", "stage=test"]
+
+# Per-environment safety policies - Enterprise focused
+environment_policies:
+  production:
+    enabled: false  # NEVER allow chaos experiments in production
+    max_duration: 0
+    allowed_experiment_types: []
+    protected_services: ["*"]  # All services protected
+    require_confirmation: true
+    require_approval: true
+
+  staging:
+    enabled: true
+    max_duration: 600  # 10 minutes max
+    allowed_experiment_types: ["cpu_stress"]  # Only CPU stress allowed
+    protected_services: [
+      "database", "auth", "payment", "user-data", "billing",
+      "security", "logging", "monitoring", "backup"
+    ]
+    require_confirmation: true
+    require_approval: true
+
+  development:
+    enabled: true
+    max_duration: 1800  # 30 minutes
+    allowed_experiment_types: ["cpu_stress", "memory_exhaust"]
+    protected_services: ["payment", "billing", "security", "auth"]
+    require_confirmation: true
+    require_approval: false
+
+  test:
+    enabled: true
+    max_duration: 3600  # 1 hour
+    allowed_experiment_types: ["cpu_stress", "memory_exhaust", "network_latency"]
+    protected_services: ["payment", "billing"]  # Only critical business services
+    require_confirmation: false
+    require_approval: false
+
+  default:
+    enabled: false  # Conservative default
+    max_duration: 0
+    allowed_experiment_types: []
+    protected_services: ["*"]
+    require_confirmation: true
+    require_approval: true
+
+# Strict experiment-specific safety rules
+experiment_safety:
+  cpu_stress:
+    max_intensity: 70  # Conservative CPU usage
+    min_available_cores: 2  # Always leave 2 cores available
+
+  memory_exhaust:
+    max_memory_percentage: 60  # Conservative memory usage
+    min_free_memory_mb: 2048  # Leave 2GB free
+
+  network_latency:
+    max_latency_ms: 1000  # Max 1 second latency
+    allowed_interfaces: ["eth0"]  # Restrict to known interfaces
+
+# Enhanced service discovery integration
+service_discovery:
+  kubernetes:
+    enabled: true
+    namespace_patterns: [
+      "kube-system", "kube-public", "monitoring", "security",
+      "logging", "ingress-*", "*-system", "vault", "consul"
+    ]
+
+  consul:
+    enabled: true
+    url: "http://localhost:8500"
+    protected_service_tags: [
+      "critical", "production", "database", "auth", "payment",
+      "security", "vault", "consul", "monitoring", "logging"
+    ]
+
+# Enhanced notification settings
+notifications:
+  slack:
+    enabled: true
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    channel: "#security-alerts"
+    notify_on_violations: true
+    notify_on_experiments: true
+
+  email:
+    enabled: true
+    smtp_server: "${SMTP_SERVER}"
+    recipients: ["security@company.com", "platform@company.com"]
+
+# Comprehensive audit and compliance
+audit:
+  log_safety_decisions: true
+  log_file: "./logs/security_audit.log"
+  include_experiment_details: true
+  retain_logs_days: 90
+
+# Additional enterprise controls
+enterprise_controls:
+  # Business hours restrictions
+  business_hours_only: true
+  allowed_hours:
+    start: "09:00"
+    end: "17:00"
+    timezone: "UTC"
+    exclude_weekends: true
+
+  # Change management integration
+  change_management:
+    require_change_ticket: true
+    ticket_pattern: "CHG-\\d+"
+
+  # Compliance requirements
+  compliance:
+    require_data_classification: true
+    allowed_data_classifications: ["public", "internal"]
+    require_business_justification: true

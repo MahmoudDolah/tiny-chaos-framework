@@ -1,0 +1,140 @@
+# Default Safety Configuration for Tiny Chaos Framework
+# This file defines safety policies and environment detection rules
+
+# Global safety settings
+global:
+  # Maximum experiment duration in seconds
+  max_duration: 600  # 10 minutes
+  # Require explicit confirmation for risky experiments
+  require_confirmation: false
+  # Enable environment auto-detection
+  auto_detect_environment: true
+
+# Environment detection rules
+environment_detection:
+  # Cloud provider detection via metadata APIs
+  cloud_providers:
+    aws:
+      metadata_url: "http://169.254.169.254/latest/meta-data/"
+      timeout: 2
+    gcp:
+      metadata_url: "http://metadata.google.internal/computeMetadata/v1/"
+      timeout: 2
+    azure:
+      metadata_url: "http://169.254.169.254/metadata/instance/"
+      timeout: 2
+
+  # Environment classification rules (checked in order)
+  classification_rules:
+    - name: "production"
+      patterns:
+        hostname: ["prod-*", "*-prod", "*production*", "*prd*"]
+        environment_vars: ["ENVIRONMENT=prod", "STAGE=production", "ENV=prd"]
+        cloud_tags: ["environment=production", "stage=prod"]
+
+    - name: "staging"
+      patterns:
+        hostname: ["staging-*", "*-staging", "*stage*", "*stg*"]
+        environment_vars: ["ENVIRONMENT=staging", "STAGE=staging", "ENV=stg"]
+        cloud_tags: ["environment=staging", "stage=staging"]
+
+    - name: "development"
+      patterns:
+        hostname: ["dev-*", "*-dev", "*development*"]
+        environment_vars: ["ENVIRONMENT=dev", "STAGE=development", "ENV=dev"]
+        cloud_tags: ["environment=development", "stage=dev"]
+
+    - name: "test"
+      patterns:
+        hostname: ["test-*", "*-test", "*testing*"]
+        environment_vars: ["ENVIRONMENT=test", "STAGE=test", "ENV=test"]
+        cloud_tags: ["environment=test", "stage=test"]
+
+# Per-environment safety policies
+environment_policies:
+  production:
+    # Production environments have strict restrictions
+    enabled: false  # Experiments disabled in production by default
+    max_duration: 0
+    allowed_experiment_types: []
+    protected_services: ["*"]  # All services protected
+    require_confirmation: true
+    require_approval: true
+
+  staging:
+    enabled: true
+    max_duration: 1800  # 30 minutes
+    allowed_experiment_types: ["cpu_stress", "memory_exhaust", "network_latency"]
+    protected_services: ["database", "auth", "payment", "user-data"]
+    require_confirmation: true
+    require_approval: false
+
+  development:
+    enabled: true
+    max_duration: 3600  # 1 hour
+    allowed_experiment_types: ["*"]  # All experiment types allowed
+    protected_services: ["payment"]  # Only critical services protected
+    require_confirmation: false
+    require_approval: false
+
+  test:
+    enabled: true
+    max_duration: 7200  # 2 hours
+    allowed_experiment_types: ["*"]
+    protected_services: []  # No protected services in test
+    require_confirmation: false
+    require_approval: false
+
+  # Default policy for unknown environments
+  default:
+    enabled: false  # Be conservative for unknown environments
+    max_duration: 300  # 5 minutes
+    allowed_experiment_types: ["cpu_stress"]  # Only safe experiments
+    protected_services: ["*"]  # Protect everything by default
+    require_confirmation: true
+    require_approval: true
+
+# Experiment-specific safety rules
+experiment_safety:
+  cpu_stress:
+    max_intensity: 90  # Maximum CPU percentage
+    min_available_cores: 1  # Always leave at least 1 core available
+
+  memory_exhaust:
+    max_memory_percentage: 80  # Maximum memory to consume (% of total)
+    min_free_memory_mb: 512  # Always leave at least 512MB free
+
+  network_latency:
+    max_latency_ms: 5000  # Maximum latency to introduce
+    allowed_interfaces: ["eth0", "eth1", "ens3", "ens4"]  # Allowed network interfaces
+
+# Service discovery integration
+service_discovery:
+  # Kubernetes service discovery
+  kubernetes:
+    enabled: false
+    namespace_patterns: ["kube-system", "monitoring", "security"]
+
+  # Consul service discovery
+  consul:
+    enabled: false
+    url: "http://localhost:8500"
+    protected_service_tags: ["critical", "production", "database"]
+
+# Notification settings for safety violations
+notifications:
+  slack:
+    enabled: false
+    webhook_url: ""
+    channel: "#chaos-engineering"
+
+  email:
+    enabled: false
+    smtp_server: ""
+    recipients: []
+
+# Audit and compliance
+audit:
+  log_safety_decisions: true
+  log_file: "./logs/safety_audit.log"
+  include_experiment_details: true
