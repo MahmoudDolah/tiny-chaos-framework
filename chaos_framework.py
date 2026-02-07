@@ -9,6 +9,7 @@ from safety import SafetyChecker
 from experiments import ExperimentRunner
 from monitoring import MonitoringClient
 from reporting import ExperimentReporter
+from dashboard_server import DashboardServer
 
 VERSION = "0.1.0"
 
@@ -116,6 +117,14 @@ def run_experiment(args):
         logging.info("Dry run complete. Experiment would be safe to execute.")
         return 0
 
+    # Setup dashboard if requested
+    dashboard = None
+    if args.dashboard:
+        dashboard = DashboardServer()
+        dashboard.run_server()
+        logging.info("Dashboard server started at http://localhost:8765")
+        logging.info("Open dashboard.html in your browser to view real-time metrics")
+
     # Setup monitoring if requested
     monitoring = None
     if args.monitor:
@@ -127,10 +136,19 @@ def run_experiment(args):
         baseline = monitoring.capture_baseline(experiment["target"]["service"])
         logging.info(f"Baseline captured: {len(baseline)} metrics")
 
+        # Integrate with dashboard if both are enabled
+        if dashboard:
+            dashboard.baseline_metrics = baseline
+
     # Run experiment
     runner = ExperimentRunner()
     try:
         logging.info(f"Starting experiment: {experiment['name']}")
+        
+        # Notify dashboard of experiment start
+        if dashboard:
+            dashboard.start_experiment(experiment)
+        
         runner.start(experiment)
 
         # Wait for completion
@@ -143,6 +161,10 @@ def run_experiment(args):
         logging.info("Stopping experiment...")
         results = runner.stop()
         logging.info(f"Experiment completed: {results}")
+
+        # Notify dashboard of experiment completion
+        if dashboard:
+            dashboard.stop_experiment(results)
 
         # Generate report if monitoring was enabled
         if monitoring:
@@ -161,11 +183,38 @@ def run_experiment(args):
     except KeyboardInterrupt:
         logging.warning("Experiment interrupted by user")
         runner.emergency_stop()
+        if dashboard:
+            dashboard.stop_experiment({"status": "interrupted"})
         return 130
 
     except Exception as e:
         logging.error(f"Error during experiment: {e}")
         runner.emergency_stop()
+        if dashboard:
+            dashboard.stop_experiment({"status": "error", "error": str(e)})
+        return 1
+
+
+def start_dashboard(args):
+    """Start the dashboard server"""
+    import asyncio
+    
+    logging.info(f"Starting dashboard server on {args.host}:{args.port}")
+    logging.info(f"Monitoring URL: {args.monitoring_url}")
+    
+    dashboard = DashboardServer(
+        host=args.host,
+        port=args.port,
+        monitoring_url=args.monitoring_url
+    )
+    
+    try:
+        asyncio.run(dashboard.start_server())
+    except KeyboardInterrupt:
+        logging.info("Dashboard server stopped")
+        return 0
+    except Exception as e:
+        logging.error(f"Dashboard server error: {e}")
         return 1
 
 
@@ -210,6 +259,22 @@ def main():
     run_parser.add_argument(
         "--report", action="store_true", help="Generate experiment report"
     )
+    run_parser.add_argument(
+        "--dashboard", action="store_true", help="Enable real-time dashboard"
+    )
+
+    # Dashboard command
+    dashboard_parser = subparsers.add_parser("dashboard", help="Start dashboard server")
+    dashboard_parser.add_argument(
+        "--host", default="localhost", help="Dashboard server host (default: localhost)"
+    )
+    dashboard_parser.add_argument(
+        "--port", type=int, default=8765, help="Dashboard server port (default: 8765)"
+    )
+    dashboard_parser.add_argument(
+        "--monitoring-url", default="http://localhost:9090", 
+        help="Monitoring system URL (default: http://localhost:9090)"
+    )
 
     args = parser.parse_args()
 
@@ -221,6 +286,8 @@ def main():
         return create_experiment_template(args)
     elif args.command == "run":
         return run_experiment(args)
+    elif args.command == "dashboard":
+        return start_dashboard(args)
     else:
         parser.print_help()
         return 0

@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tiny Chaos - Real-Time Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f6fa;
+            color: #2c3e50;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .header h1 {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #95a5a6;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.connected {
+            background: #2ecc71;
+        }
+
+        .status-indicator.experimenting {
+            background: #e74c3c;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .controls {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+
+        .controls h2 {
+            margin-bottom: 1rem;
+            color: #2c3e50;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .control-group label {
+            font-weight: 500;
+            min-width: 100px;
+        }
+
+        .control-group input, .control-group button {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .control-group button {
+            background: #3498db;
+            color: white;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .control-group button:hover {
+            background: #2980b9;
+        }
+
+        .control-group button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .card h3 {
+            margin-bottom: 1rem;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+
+        .metrics-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .metrics-table th,
+        .metrics-table td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid #ecf0f1;
+        }
+
+        .metrics-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+        }
+
+        .change-positive {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+
+        .change-negative {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .experiment-info {
+            grid-column: 1 / -1;
+        }
+
+        .experiment-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: #ecf0f1;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+
+        .experiment-status.running {
+            background: #ffe6e6;
+            color: #c0392b;
+        }
+
+        .logs {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+            z-index: 1000;
+        }
+
+        .connection-status.connected {
+            background: #27ae60;
+        }
+
+        .connection-status.disconnected {
+            background: #e74c3c;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>
+            <div class="status-indicator" id="statusIndicator"></div>
+            Tiny Chaos Dashboard
+        </h1>
+    </div>
+
+    <div class="connection-status disconnected" id="connectionStatus">
+        Disconnected
+    </div>
+
+    <div class="container">
+        <div class="controls">
+            <h2>Controls</h2>
+            <div class="control-group">
+                <label>Service:</label>
+                <input type="text" id="serviceInput" value="web-server" placeholder="Target service name">
+                <button onclick="captureBaseline()">Capture Baseline</button>
+                <button onclick="startStreaming()" id="startBtn">Start Monitoring</button>
+                <button onclick="stopStreaming()" id="stopBtn" disabled>Stop Monitoring</button>
+            </div>
+        </div>
+
+        <div class="card experiment-info">
+            <h3>Experiment Status</h3>
+            <div class="experiment-status" id="experimentStatus">
+                <span>No active experiment</span>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="card">
+                <h3>📈 Metrics Timeline</h3>
+                <div class="chart-container">
+                    <canvas id="timelineChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📊 Current vs Baseline</h3>
+                <div class="chart-container">
+                    <canvas id="comparisonChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>📋 Live Metrics</h3>
+                <table class="metrics-table" id="metricsTable">
+                    <thead>
+                        <tr>
+                            <th>Metric</th>
+                            <th>Current</th>
+                            <th>Baseline</th>
+                            <th>Change</th>
+                        </tr>
+                    </thead>
+                    <tbody id="metricsTableBody">
+                        <tr>
+                            <td colspan="4">No data available</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h3>📝 Activity Log</h3>
+                <div class="logs" id="activityLog">
+                    Dashboard initialized...\n
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class ChaosMonitorDashboard {
+            constructor() {
+                this.ws = null;
+                this.timelineChart = null;
+                this.comparisonChart = null;
+                this.metricsData = [];
+                this.baselineData = {};
+                this.isStreaming = false;
+                
+                this.initCharts();
+                this.connect();
+            }
+
+            connect() {
+                const wsUrl = 'ws://localhost:8765';
+                this.ws = new WebSocket(wsUrl);
+
+                this.ws.onopen = () => {
+                    this.log('Connected to dashboard server');
+                    this.updateConnectionStatus(true);
+                };
+
+                this.ws.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    this.handleMessage(message);
+                };
+
+                this.ws.onclose = () => {
+                    this.log('Connection lost. Attempting to reconnect...');
+                    this.updateConnectionStatus(false);
+                    setTimeout(() => this.connect(), 5000);
+                };
+
+                this.ws.onerror = (error) => {
+                    this.log(`Connection error: ${error}`);
+                };
+            }
+
+            handleMessage(message) {
+                switch (message.type) {
+                    case 'metrics_update':
+                        this.updateMetrics(message.data);
+                        break;
+                    case 'baseline_captured':
+                        this.updateBaseline(message.data);
+                        break;
+                    case 'experiment_started':
+                        this.updateExperimentStatus(message.data, true);
+                        break;
+                    case 'experiment_stopped':
+                        this.updateExperimentStatus(null, false);
+                        break;
+                    case 'stream_started':
+                        this.log(`Started monitoring ${message.data.service}`);
+                        break;
+                    case 'stream_stopped':
+                        this.log('Stopped monitoring');
+                        break;
+                }
+            }
+
+            updateConnectionStatus(connected) {
+                const status = document.getElementById('connectionStatus');
+                const indicator = document.getElementById('statusIndicator');
+                
+                if (connected) {
+                    status.textContent = 'Connected';
+                    status.className = 'connection-status connected';
+                    indicator.className = 'status-indicator connected';
+                } else {
+                    status.textContent = 'Disconnected';
+                    status.className = 'connection-status disconnected';
+                    indicator.className = 'status-indicator';
+                }
+            }
+
+            updateMetrics(data) {
+                this.metricsData.push({
+                    timestamp: new Date(data.timestamp),
+                    metrics: data.metrics,
+                    changes: data.changes
+                });
+
+                // Keep only last 50 data points
+                if (this.metricsData.length > 50) {
+                    this.metricsData.shift();
+                }
+
+                this.updateCharts();
+                this.updateMetricsTable(data.changes);
+            }
+
+            updateBaseline(data) {
+                this.baselineData = data.baseline;
+                this.log(`Baseline captured for ${data.service}: ${Object.keys(data.baseline).length} metrics`);
+            }
+
+            updateExperimentStatus(experiment, running) {
+                const statusDiv = document.getElementById('experimentStatus');
+                const indicator = document.getElementById('statusIndicator');
+                
+                if (running && experiment) {
+                    statusDiv.innerHTML = `
+                        <div>
+                            <strong>${experiment.name}</strong> - Running
+                            <br><small>Started: ${new Date(experiment.start_time).toLocaleTimeString()}</small>
+                        </div>
+                        <div>Duration: ${experiment.duration}s</div>
+                    `;
+                    statusDiv.className = 'experiment-status running';
+                    indicator.className = 'status-indicator experimenting';
+                    this.log(`Experiment started: ${experiment.name}`);
+                } else {
+                    statusDiv.innerHTML = '<span>No active experiment</span>';
+                    statusDiv.className = 'experiment-status';
+                    indicator.className = 'status-indicator connected';
+                    this.log('Experiment stopped');
+                }
+            }
+
+            updateMetricsTable(changes) {
+                const tbody = document.getElementById('metricsTableBody');
+                
+                if (!changes || Object.keys(changes).length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4">No data available</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = Object.entries(changes).map(([metric, data]) => {
+                    const changeClass = data.change_percent > 0 ? 'change-positive' : 'change-negative';
+                    const changeSign = data.change_percent > 0 ? '+' : '';
+                    
+                    return `
+                        <tr>
+                            <td>${metric}</td>
+                            <td>${data.current.toFixed(2)}</td>
+                            <td>${data.baseline.toFixed(2)}</td>
+                            <td class="${changeClass}">
+                                ${changeSign}${data.change_percent.toFixed(1)}%
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            initCharts() {
+                // Timeline Chart
+                const timelineCtx = document.getElementById('timelineChart').getContext('2d');
+                this.timelineChart = new Chart(timelineCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: []
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            x: {
+                                type: 'time',
+                                time: { unit: 'minute' }
+                            },
+                            y: { beginAtZero: true }
+                        },
+                        plugins: {
+                            legend: { position: 'top' }
+                        }
+                    }
+                });
+
+                // Comparison Chart
+                const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
+                this.comparisonChart = new Chart(comparisonCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: 'Baseline',
+                                data: [],
+                                backgroundColor: 'rgba(52, 152, 219, 0.7)'
+                            },
+                            {
+                                label: 'Current',
+                                data: [],
+                                backgroundColor: 'rgba(231, 76, 60, 0.7)'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: { y: { beginAtZero: true } }
+                    }
+                });
+            }
+
+            updateCharts() {
+                if (this.metricsData.length === 0) return;
+
+                // Update timeline chart
+                const latestMetrics = this.metricsData[this.metricsData.length - 1];
+                const metricNames = Object.keys(latestMetrics.metrics);
+                
+                // Prepare timeline data
+                const labels = this.metricsData.map(d => d.timestamp);
+                const datasets = metricNames.map((metric, index) => ({
+                    label: metric,
+                    data: this.metricsData.map(d => d.metrics[metric] || 0),
+                    borderColor: `hsl(${index * 60}, 70%, 50%)`,
+                    backgroundColor: `hsla(${index * 60}, 70%, 50%, 0.1)`,
+                    fill: false
+                }));
+
+                this.timelineChart.data.labels = labels;
+                this.timelineChart.data.datasets = datasets;
+                this.timelineChart.update('none');
+
+                // Update comparison chart
+                if (Object.keys(this.baselineData).length > 0) {
+                    const currentMetrics = latestMetrics.metrics;
+                    const comparisonLabels = Object.keys(this.baselineData);
+                    const baselineValues = comparisonLabels.map(m => this.baselineData[m] || 0);
+                    const currentValues = comparisonLabels.map(m => currentMetrics[m] || 0);
+
+                    this.comparisonChart.data.labels = comparisonLabels;
+                    this.comparisonChart.data.datasets[0].data = baselineValues;
+                    this.comparisonChart.data.datasets[1].data = currentValues;
+                    this.comparisonChart.update('none');
+                }
+            }
+
+            log(message) {
+                const logElement = document.getElementById('activityLog');
+                const timestamp = new Date().toLocaleTimeString();
+                logElement.textContent += `[${timestamp}] ${message}\n`;
+                logElement.scrollTop = logElement.scrollHeight;
+            }
+
+            send(message) {
+                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                    this.ws.send(JSON.stringify(message));
+                }
+            }
+
+            captureBaseline() {
+                const service = document.getElementById('serviceInput').value;
+                this.send({ action: 'get_baseline', service });
+            }
+
+            startStreaming() {
+                const service = document.getElementById('serviceInput').value;
+                this.send({ action: 'start_metrics_stream', service });
+                this.isStreaming = true;
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+            }
+
+            stopStreaming() {
+                this.send({ action: 'stop_metrics_stream' });
+                this.isStreaming = false;
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+
+        // Global functions for HTML onclick handlers
+        let dashboard;
+
+        function captureBaseline() {
+            dashboard.captureBaseline();
+        }
+
+        function startStreaming() {
+            dashboard.startStreaming();
+        }
+
+        function stopStreaming() {
+            dashboard.stopStreaming();
+        }
+
+        // Initialize dashboard when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            dashboard = new ChaosMonitorDashboard();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+description: Simulate high CPU load on test servers
+duration: 300
+intensity: 80
+name: CPU Stress Test
+success_criteria:
+- Autoscaling group scales up within 2 minutes
+- No request timeouts during experiment
+target:
+  environment: test
+  hosts:
+  - test-server-01
+  - test-server-02
+  service: web-server
+type: cpu_stress
