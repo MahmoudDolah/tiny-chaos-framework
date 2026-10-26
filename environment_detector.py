@@ -1,9 +1,9 @@
 # environment_detector.py
+import fnmatch
 import os
 import socket
 import requests
 import logging
-import re
 from typing import Dict, Optional, Tuple
 
 
@@ -294,13 +294,6 @@ class EnvironmentDetector:
         return "default"
 
     def _match_pattern(self, text: str, pattern: str) -> bool:
-        """Match text against a glob-like pattern."""
-        # Convert glob pattern to regex
-        regex_pattern = pattern.replace("*", ".*").replace("?", ".")
-        regex_pattern = f"^{regex_pattern}$"
-
-        try:
-            return bool(re.match(regex_pattern, text, re.IGNORECASE))
-        except re.error:
-            self.logger.warning(f"Invalid pattern: {pattern}")
-            return False
+        """Match text against a glob pattern, case-insensitively."""
+        # fnmatch treats regex metacharacters like '.' literally
+        return fnmatch.fnmatchcase(text.lower(), pattern.lower())
