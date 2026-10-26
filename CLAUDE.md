@@ -15,6 +15,7 @@ This is the Tiny Chaos Framework - a lightweight Python framework for running ch
 - **Run experiment**: `uv run python chaos_framework.py run --experiment cpu_experiment.yaml --dry-run`
 - **Check environment info**: `uv run python chaos_framework.py env-info`
 - **Validate safety config**: `uv run python chaos_framework.py validate-safety`
+- **Run tests**: `uv run pytest`
 - **Lint code**: `uv run ruff check .`
 - **Format code**: `uv run ruff format .`
 
