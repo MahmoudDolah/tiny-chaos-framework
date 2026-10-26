@@ -6,7 +6,7 @@ import sys
 import yaml
 import os
 from safety import SafetyChecker
-from experiments import ExperimentRunner
+from experiments import ExperimentRunner, validate_experiment
 from monitoring import MonitoringClient
 from reporting import ExperimentReporter
 
@@ -102,6 +102,15 @@ def run_experiment(args):
             experiment = yaml.safe_load(f)
     except Exception as e:
         logging.error(f"Failed to load experiment: {e}")
+        return 1
+
+    errors, warnings = validate_experiment(experiment)
+    for warning in warnings:
+        logging.warning(f"Experiment definition: {warning}")
+    if errors:
+        logging.error(f"Invalid experiment definition in {args.experiment}:")
+        for error in errors:
+            logging.error(f"  - {error}")
         return 1
 
     logging.info(f"Loaded experiment: {experiment['name']}")

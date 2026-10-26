@@ -45,14 +45,14 @@ uv run python chaos_framework.py env-info --safety-config safety_config_default.
 
 ### 3. Create Experiment Template
 
-Generate experiment templates with safety-aware defaults:
+Generate experiment templates (types: `cpu`, `memory`, `network`):
 
 ```bash
 # Create CPU stress experiment
 uv run python chaos_framework.py template --type cpu --output cpu_test.yaml
 
-# Create with specific safety config (affects template parameters)
-uv run python chaos_framework.py template --type cpu --output cpu_test_enterprise.yaml
+# Create network latency experiment
+uv run python chaos_framework.py template --type network --output network_test.yaml
 ```
 
 ### 4. Validate Experiment Safety
@@ -182,6 +182,31 @@ uv run python chaos_framework.py run --experiment long_test.yaml --dry-run --saf
 # Output:
 # ERROR -   - duration_exceeded: Experiment duration 7200s exceeds maximum allowed 600s
 ```
+
+### Example 4: Invalid Experiment Definition
+
+Experiment files are validated before any safety check runs. Errors abort the run; warnings (such as misspelled keys) are logged but don't block it.
+
+```bash
+cat > broken_test.yaml << EOF
+name: Broken Test
+type: cpu_stres     # typo
+duration: "300"     # string, not a number
+intensty: 80        # typo
+target:
+  service: web-server
+EOF
+
+uv run python chaos_framework.py run --experiment broken_test.yaml --dry-run
+
+# Output:
+# WARNING - Experiment definition: Unknown field 'intensty' will be ignored
+# ERROR - Invalid experiment definition in broken_test.yaml:
+# ERROR -   - 'type' must be one of ['cpu_stress', 'memory_exhaust', 'network_latency'], got 'cpu_stres'
+# ERROR -   - 'duration' is required and must be a positive integer (seconds), got '300'
+```
+
+Required fields: `name`, `type`, `duration` (positive integer seconds), and `target.service`. Type-specific parameters are range-checked: `intensity` (1-100) for `cpu_stress`, `memory_mb` (>= 1) for `memory_exhaust`, and `latency_ms` (>= 1) and `interface` for `network_latency`.
 
 ## Configuration Management
 

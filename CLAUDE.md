@@ -74,26 +74,27 @@ This is the Tiny Chaos Framework - a lightweight Python framework for running ch
 ### Experiment Flow
 
 1. **Template Creation**: Generate YAML experiment definitions using built-in templates
-2. **Environment Detection**: Auto-detect current environment type (production, staging, dev, test)
-3. **Safety Policy Loading**: Load appropriate safety configuration for detected environment
-4. **Enhanced Safety Validation**:
+2. **Definition Validation**: Reject malformed experiment YAML (missing/mistyped fields, out-of-range parameters); warn on unknown keys
+3. **Environment Detection**: Auto-detect current environment type (production, staging, dev, test)
+4. **Safety Policy Loading**: Load appropriate safety configuration for detected environment
+5. **Enhanced Safety Validation**:
    - Check if experiments enabled in current environment
    - Validate experiment type against allowlist
    - Check duration limits and parameter constraints
    - Verify target service is not protected (static + service discovery)
    - Generate detailed violation reports if unsafe
-5. **Baseline Capture**: Record metrics before experiment (if monitoring enabled)
-6. **Experiment Execution**: Run controlled failure injection for specified duration
-7. **Metrics Comparison**: Compare post-experiment metrics with baseline
-8. **Report Generation**: Create HTML reports with visualizations and analysis
-9. **Audit Logging**: Record safety decisions and experiment outcomes for compliance
+6. **Baseline Capture**: Record metrics before experiment (if monitoring enabled)
+7. **Experiment Execution**: Run controlled failure injection for specified duration
+8. **Metrics Comparison**: Compare post-experiment metrics with baseline
+9. **Report Generation**: Create HTML reports with visualizations and analysis
+10. **Audit Logging**: Record safety decisions and experiment outcomes for compliance
 
 ### Configuration
 
 - **Environment Variables**:
   - `CHAOS_MONITORING_URL`: Monitoring system endpoint (default: http://localhost:9090)
   - `ENVIRONMENT`/`ENV`/`STAGE`: Environment type for auto-detection
-- **Experiment YAML Structure**: Contains name, type, description, target (environment/service/hosts), duration, and success criteria
+- **Experiment YAML Structure**: Contains name, type, description, target (environment/service/hosts), duration, and success criteria. Validated by `validate_experiment()` in `experiments.py` before safety checks; `name`, `type`, positive integer `duration`, and `target.service` are required
 - **Safety Configuration Files**:
   - `safety_config_default.yaml`: Balanced policies for general use
   - `safety_config_dev.yaml`: Permissive policies for development environments
