@@ -18,9 +18,11 @@ class ExperimentReporter:
         # Convert metrics to DataFrame for easier manipulation
         metrics_df = self._metrics_to_dataframe(metrics_comparison)
 
-        # Generate plots
-        plot_file = f"{self.output_dir}/{experiment['name']}_{report_time}.png"
-        self._generate_plots(metrics_df, plot_file, experiment["name"])
+        # Generate plots (skipped when there is no numeric data to chart)
+        plot_file = None
+        if not metrics_df.empty and metrics_df["Change (%)"].notna().any():
+            plot_file = f"{self.output_dir}/{experiment['name']}_{report_time}.png"
+            self._generate_plots(metrics_df, plot_file, experiment["name"])
 
         # Create HTML report
         with open(report_file, "w") as f:
@@ -42,25 +44,30 @@ class ExperimentReporter:
                 }
             )
 
-        return pd.DataFrame(data)
+        return pd.DataFrame(
+            data, columns=["Metric", "Baseline", "During Experiment", "Change (%)"]
+        )
 
     def _generate_plots(self, metrics_df, output_file, title):
         """Generate visualization of the metrics"""
-        plt.figure(figsize=(10, 6))
+        fig, ax = plt.subplots(figsize=(10, 6))
 
         # Create bar chart of percent changes
         metrics_df.plot(
             x="Metric",
             y="Change (%)",
             kind="bar",
+            ax=ax,
             title=f"Impact of Chaos Experiment: {title}",
         )
 
-        plt.tight_layout()
-        plt.savefig(output_file)
+        fig.tight_layout()
+        fig.savefig(output_file)
+        plt.close(fig)
 
     def _generate_html_report(self, experiment, metrics_df, plot_file):
         """Generate HTML report with experiment details and results"""
+        target = experiment.get("target", {})
         html = f"""
         <html>
         <head>
@@ -82,10 +89,10 @@ class ExperimentReporter:
                 <h2>Experiment Summary</h2>
                 <p><strong>Name:</strong> {experiment["name"]}</p>
                 <p><strong>Type:</strong> {experiment["type"]}</p>
-                <p><strong>Description:</strong> {experiment["description"]}</p>
+                <p><strong>Description:</strong> {experiment.get("description", "n/a")}</p>
                 <p><strong>Duration:</strong> {experiment["duration"]} seconds</p>
-                <p><strong>Target Environment:</strong> {experiment["target"]["environment"]}</p>
-                <p><strong>Target Service:</strong> {experiment["target"]["service"]}</p>
+                <p><strong>Target Environment:</strong> {target.get("environment", "n/a")}</p>
+                <p><strong>Target Service:</strong> {target.get("service", "n/a")}</p>
             </div>
             
             <div class="metrics">
@@ -103,7 +110,7 @@ class ExperimentReporter:
             
             <div class="plot">
                 <h2>Visual Impact</h2>
-                <img src="{os.path.basename(plot_file)}" alt="Experiment Impact Visualization">
+                {self._generate_plot_html(plot_file)}
             </div>
             
             <div class="conclusion">
@@ -119,16 +126,27 @@ class ExperimentReporter:
         """
         return html
 
+    def _generate_plot_html(self, plot_file):
+        """Generate the plot image tag, or a placeholder when no plot was made"""
+        if plot_file is None:
+            return "<p>No metric changes to visualize.</p>"
+        return f'<img src="{os.path.basename(plot_file)}" alt="Experiment Impact Visualization">'
+
     def _generate_table_rows(self, metrics_df):
         """Generate HTML table rows for metrics"""
+        if metrics_df.empty:
+            return '<tr><td colspan="4">No metrics were collected.</td></tr>'
+
         rows = ""
         for _, row in metrics_df.iterrows():
+            change = row["Change (%)"]
+            change_text = "n/a" if pd.isna(change) else f"{change:.2f}%"
             rows += f"""
             <tr>
                 <td>{row["Metric"]}</td>
                 <td>{row["Baseline"]:.2f}</td>
                 <td>{row["During Experiment"]:.2f}</td>
-                <td>{row["Change (%)"]:.2f}%</td>
+                <td>{change_text}</td>
             </tr>
             """
         return rows

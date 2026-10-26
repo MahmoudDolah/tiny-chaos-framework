@@ -1,7 +1,7 @@
 [project]
 name = "tiny-chaos"
 version = "0.1.0"
-description = "Add your description here"
+description = "A lightweight framework for running chaos engineering experiments with configurable safety policies"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -9,5 +9,31 @@ dependencies = [
     "pandas>=2.2.3",
     "pyyaml>=6.0.2",
     "requests>=2.32.3",
-    "ruff>=0.11.9",
 ]
+
+[project.scripts]
+tiny-chaos = "chaos_framework:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = [
+    "chaos_framework",
+    "environment_detector",
+    "experiments",
+    "monitoring",
+    "reporting",
+    "safety",
+    "service_discovery",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.17.2",
+]
+
+[tool.ruff.lint]
+# Pin the classic default rule set so ruff upgrades don't change what we lint
+select = ["E4", "E7", "E9", "F"]

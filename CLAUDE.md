@@ -10,6 +10,7 @@ This is the Tiny Chaos Framework - a lightweight Python framework for running ch
 
 ### Development Commands
 - **Run the main framework**: `uv run python chaos_framework.py --help`
+- **Run via installed entry point**: `uv run tiny-chaos --help` (equivalent to the above)
 - **Create experiment template**: `uv run python chaos_framework.py template --type cpu --output cpu_experiment.yaml`
 - **Run experiment**: `uv run python chaos_framework.py run --experiment cpu_experiment.yaml --dry-run`
 - **Check environment info**: `uv run python chaos_framework.py env-info`

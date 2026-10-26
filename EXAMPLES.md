@@ -51,7 +51,7 @@ Generate experiment templates with safety-aware defaults:
 uv run python chaos_framework.py template --type cpu --output cpu_test.yaml
 
 # Create with specific safety config (affects template parameters)
-uv run python chaos_framework.py template --type cpu --output cpu_test_enterprise.yaml --safety-config safety_config_enterprise.yaml
+uv run python chaos_framework.py template --type cpu --output cpu_test_enterprise.yaml
 ```
 
 ### 4. Validate Experiment Safety
@@ -90,7 +90,7 @@ uv run python chaos_framework.py run --experiment cpu_test.yaml --safety-config 
 export ENVIRONMENT=dev
 
 # Create and run permissive experiment
-uv run python chaos_framework.py template --type memory --output dev_memory_test.yaml --safety-config safety_config_dev.yaml
+uv run python chaos_framework.py template --type memory --output dev_memory_test.yaml
 uv run python chaos_framework.py run --experiment dev_memory_test.yaml --safety-config safety_config_dev.yaml
 ```
 
@@ -115,7 +115,7 @@ uv run python chaos_framework.py run --experiment staging_cpu_test.yaml --dry-ru
 uv run python chaos_framework.py env-info --safety-config safety_config_enterprise.yaml
 
 # Attempt to create experiment (may be restricted)
-uv run python chaos_framework.py template --type cpu --output enterprise_test.yaml --safety-config safety_config_enterprise.yaml
+uv run python chaos_framework.py template --type cpu --output enterprise_test.yaml
 
 # Validate strict safety policies
 uv run python chaos_framework.py validate-safety --safety-config safety_config_enterprise.yaml

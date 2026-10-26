@@ -107,14 +107,7 @@ def run_experiment(args):
     logging.info(f"Loaded experiment: {experiment['name']}")
 
     # Safety checks
-    safety = SafetyChecker(
-        args.safety_config if hasattr(args, "safety_config") else None
-    )
-
-    # Validate safety configuration if requested
-    if hasattr(args, "validate_safety") and args.validate_safety:
-        return validate_safety_config(safety)
-
+    safety = SafetyChecker(args.safety_config)
     is_safe, violations = safety.is_safe_to_run(experiment)
 
     if not is_safe:
@@ -135,6 +128,9 @@ def run_experiment(args):
     if args.dry_run:
         logging.info("Dry run complete. Experiment would be safe to execute.")
         return 0
+
+    if args.report and not args.monitor:
+        logging.warning("--report requires --monitor; no report will be generated")
 
     # Setup monitoring if requested
     monitoring = None
@@ -187,20 +183,6 @@ def run_experiment(args):
         logging.error(f"Error during experiment: {e}")
         runner.emergency_stop()
         return 1
-
-
-def validate_safety_config(safety):
-    """Validate safety configuration and return status."""
-    issues = safety.validate_config()
-
-    if issues:
-        logging.error("Safety configuration validation failed:")
-        for issue in issues:
-            logging.error(f"  - {issue}")
-        return 1
-    else:
-        logging.info("Safety configuration is valid")
-        return 0
 
 
 def validate_safety_command(args):
@@ -307,10 +289,6 @@ def main():
     )
     template_parser.add_argument(
         "--output", required=True, help="Output file for template"
-    )
-    template_parser.add_argument(
-        "--safety-config",
-        help="Path to safety configuration YAML file (affects template generation)",
     )
 
     # Run experiment command

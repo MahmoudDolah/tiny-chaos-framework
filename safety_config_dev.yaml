@@ -24,7 +24,7 @@ environment_detection:
     - name: "production"
       patterns:
         hostname: ["prod-*", "*-prod", "*production*", "*prd*"]
-        environment_vars: ["ENVIRONMENT=prod", "ENVIRONMENT=production"]
+        environment_vars: ["ENVIRONMENT=prod", "ENVIRONMENT=production", "STAGE=prod", "STAGE=production", "ENV=prod", "ENV=prd", "ENV=production"]
         cloud_tags: ["environment=production", "stage=prod"]
 
     - name: "staging"

@@ -58,12 +58,17 @@ class EnvironmentDetector:
                 metadata_url = config["metadata_url"]
                 timeout = config.get("timeout", 2)
 
+                result = None
                 if provider == "aws":
-                    return self._detect_aws(metadata_url, timeout)
+                    result = self._detect_aws(metadata_url, timeout)
                 elif provider == "gcp":
-                    return self._detect_gcp(metadata_url, timeout)
+                    result = self._detect_gcp(metadata_url, timeout)
                 elif provider == "azure":
-                    return self._detect_azure(metadata_url, timeout)
+                    result = self._detect_azure(metadata_url, timeout)
+
+                # Only stop on a positive match; otherwise try the next provider
+                if result:
+                    return result
 
             except Exception as e:
                 self.logger.debug(f"Failed to detect {provider}: {e}")
@@ -246,7 +251,11 @@ class EnvironmentDetector:
                     if "=" in env_pattern:
                         key, expected_value = env_pattern.split("=", 1)
                         actual_value = os.environ.get(key)
-                        if actual_value == expected_value:
+                        # Case-insensitive so ENVIRONMENT=Production still matches
+                        if (
+                            actual_value is not None
+                            and actual_value.lower() == expected_value.lower()
+                        ):
                             detection_details["matched_rules"].append(
                                 {
                                     "rule": rule_name,

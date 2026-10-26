@@ -4,9 +4,10 @@ import logging
 
 
 class MonitoringClient:
-    def __init__(self, monitoring_url, api_key=None):
+    def __init__(self, monitoring_url, api_key=None, timeout=10):
         self.monitoring_url = monitoring_url
         self.api_key = api_key
+        self.timeout = timeout
         self.baseline_metrics = {}
 
     def capture_baseline(self, target_service):
@@ -21,13 +22,11 @@ class MonitoringClient:
 
         for metric, value in current.items():
             if metric in self.baseline_metrics:
-                change = (
-                    (value - self.baseline_metrics[metric])
-                    / self.baseline_metrics[metric]
-                    * 100
-                )
+                baseline = self.baseline_metrics[metric]
+                # Percent change is undefined against a zero baseline
+                change = ((value - baseline) / baseline * 100) if baseline else None
                 comparison[metric] = {
-                    "baseline": self.baseline_metrics[metric],
+                    "baseline": baseline,
                     "current": value,
                     "change_percent": change,
                 }
@@ -47,6 +46,7 @@ class MonitoringClient:
                 headers={"Authorization": f"Bearer {self.api_key}"}
                 if self.api_key
                 else {},
+                timeout=self.timeout,
             )
 
             if response.status_code == 200:

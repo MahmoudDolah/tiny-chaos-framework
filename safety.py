@@ -282,10 +282,10 @@ class SafetyChecker:
             os.makedirs(os.path.dirname(log_file), exist_ok=True)
 
             import json
-            from datetime import datetime
+            from datetime import datetime, timezone
 
             audit_entry = {
-                "timestamp": datetime.utcnow().isoformat(),
+                "timestamp": datetime.now(timezone.utc).isoformat(),
                 "experiment_name": experiment.get("name", "unknown"),
                 "experiment_type": experiment.get("type", "unknown"),
                 "environment": environment,

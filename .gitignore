@@ -1,3 +1,8 @@
 Pipfile
 Pipfile.lock
 __pycache__
+.venv/
+*.egg-info/
+build/
+logs/
+reports/
