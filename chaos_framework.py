@@ -125,9 +125,17 @@ def run_experiment(args):
             f"Safety policy: {env_info['policy']['enabled']} (max duration: {env_info['policy']['max_duration']}s)"
         )
 
+    needs_confirmation = safety.requires_confirmation()
+
     if args.dry_run:
+        if needs_confirmation:
+            logging.info("Executing would require confirmation (or --yes).")
         logging.info("Dry run complete. Experiment would be safe to execute.")
         return 0
+
+    if needs_confirmation and not confirm_experiment(experiment, safety, args.yes):
+        logging.error("Experiment not confirmed. Aborted.")
+        return 1
 
     if args.report and not args.monitor:
         logging.warning("--report requires --monitor; no report will be generated")
@@ -185,6 +193,37 @@ def run_experiment(args):
         return 1
 
 
+def confirm_experiment(experiment, safety, assume_yes=False):
+    """Ask the operator to confirm before injecting failures.
+
+    Returns True if the experiment may proceed.
+    """
+    if assume_yes:
+        logging.warning("Confirmation required by safety policy; skipped with --yes")
+        return True
+
+    if not sys.stdin.isatty():
+        logging.error(
+            "Safety policy requires confirmation, but stdin is not interactive. "
+            "Re-run with --yes to confirm non-interactively."
+        )
+        return False
+
+    env_type = safety.get_environment_info()["environment_type"]
+    target = experiment.get("target", {})
+    print("\nThe safety policy requires confirmation before running:")
+    print(f"  Experiment:  {experiment['name']} ({experiment['type']})")
+    print(f"  Environment: {env_type}")
+    print(f"  Service:     {target.get('service', 'unknown')}")
+    print(f"  Duration:    {experiment['duration']}s")
+
+    try:
+        answer = input("Type 'yes' to proceed: ")
+    except EOFError:
+        return False
+    return answer.strip().lower() == "yes"
+
+
 def validate_safety_command(args):
     """Command to validate safety configuration."""
     try:
@@ -206,6 +245,10 @@ def validate_safety_command(args):
             policy = env_info["policy"]
             logging.info(f"Experiments enabled: {policy.get('enabled', False)}")
             logging.info(f"Max duration: {policy.get('max_duration', 0)} seconds")
+            logging.info(
+                f"Global max duration: {env_info['global_max_duration']} seconds"
+            )
+            logging.info(f"Requires confirmation: {env_info['requires_confirmation']}")
             logging.info(f"Allowed types: {policy.get('allowed_experiment_types', [])}")
             logging.info(
                 f"Protected services: {len(policy.get('protected_services', []))} configured"
@@ -249,8 +292,9 @@ def environment_info_command(args):
         )
         logging.info(f"Protected Services: {policy.get('protected_services', [])}")
         logging.info(
-            f"Require Confirmation: {policy.get('require_confirmation', False)}"
+            f"Global Maximum Duration: {env_info['global_max_duration']} seconds"
         )
+        logging.info(f"Require Confirmation: {env_info['requires_confirmation']}")
 
         protected_services = env_info.get("protected_services", [])
         if protected_services:
@@ -307,6 +351,12 @@ def main():
     )
     run_parser.add_argument(
         "--safety-config", help="Path to safety configuration YAML file"
+    )
+    run_parser.add_argument(
+        "-y",
+        "--yes",
+        action="store_true",
+        help="Skip the interactive confirmation required by some safety policies",
     )
 
     # Safety validation command

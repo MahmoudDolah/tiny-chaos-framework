@@ -116,6 +116,17 @@ class SafetyChecker:
                     {"duration": duration, "max_duration": max_duration},
                 )
             )
+        else:
+            # The global limit is a hard ceiling over every environment policy
+            global_max = self.config.get("global", {}).get("max_duration")
+            if global_max is not None and duration > global_max:
+                violations.append(
+                    SafetyViolation(
+                        "global_duration_exceeded",
+                        f"Experiment duration {duration}s exceeds global maximum {global_max}s",
+                        {"duration": duration, "global_max_duration": global_max},
+                    )
+                )
 
         # Check protected services
         target_service = experiment.get("target", {}).get("service", "unknown")
@@ -309,6 +320,19 @@ class SafetyChecker:
         except Exception as e:
             self.logger.error(f"Failed to log safety decision: {e}")
 
+    def requires_confirmation(self) -> bool:
+        """Check if running in the current environment needs interactive confirmation.
+
+        Confirmation is required if either the global setting or the current
+        environment's policy asks for it.
+        """
+        environment_type, _ = self._get_environment_info()
+        policy = self._get_environment_policy(environment_type)
+        return bool(
+            self.config.get("global", {}).get("require_confirmation", False)
+            or policy.get("require_confirmation", False)
+        )
+
     def get_environment_info(self) -> Dict:
         """Get detailed environment information for debugging."""
         environment_type, env_details = self._get_environment_info()
@@ -318,6 +342,8 @@ class SafetyChecker:
             "environment_type": environment_type,
             "environment_details": env_details,
             "policy": policy,
+            "global_max_duration": self.config.get("global", {}).get("max_duration"),
+            "requires_confirmation": self.requires_confirmation(),
             "protected_services": list(self.service_discovery.get_protected_services()),
         }
 
@@ -341,5 +367,15 @@ class SafetyChecker:
 
             if "max_duration" not in policy:
                 issues.append(f"Missing 'max_duration' field in {env_name} policy")
+
+        # A policy limit above the global ceiling can never take effect
+        global_max = self.config.get("global", {}).get("max_duration")
+        if global_max is not None:
+            for env_name, policy in policies.items():
+                if policy.get("max_duration", 0) > global_max:
+                    issues.append(
+                        f"{env_name} policy max_duration ({policy['max_duration']}s) "
+                        f"exceeds global max_duration ({global_max}s)"
+                    )
 
         return issues

@@ -105,6 +105,32 @@ environment_policies:
     require_approval: false
 ```
 
+### Global Settings
+
+The `global` section applies on top of every environment policy:
+
+```yaml
+global:
+  max_duration: 7200          # Hard ceiling: no policy can allow longer
+  require_confirmation: false # If true, every environment requires confirmation
+```
+
+- **`max_duration`** is a hard ceiling. An experiment must fit both its environment's `max_duration` and the global one. `validate-safety` reports any policy whose `max_duration` is above the global ceiling, since that limit could never take effect.
+- **`require_confirmation`** is required if either the global setting *or* the environment policy asks for it.
+
+### Confirmation
+
+When confirmation is required, `run` shows the experiment, environment, target service and duration, then waits for you to type `yes`. Any other answer aborts.
+
+- `--dry-run` never prompts; it notes when a real run would need confirmation.
+- `--yes` / `-y` confirms non-interactively, e.g. in CI. The skip is logged as a warning.
+- Without `--yes`, a run whose stdin is not a terminal aborts rather than proceeding unconfirmed.
+
+```bash
+ENVIRONMENT=staging uv run tiny-chaos run --experiment test.yaml        # prompts
+ENVIRONMENT=staging uv run tiny-chaos run --experiment test.yaml --yes  # no prompt
+```
+
 ## Experiment-Specific Safety
 
 The system includes experiment-specific safety rules:

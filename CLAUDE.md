@@ -106,6 +106,8 @@ This is the Tiny Chaos Framework - a lightweight Python framework for running ch
 - **Configurable Safety Policies**: Different rules per environment type (production, staging, dev, test)
 - **Protected Service Validation**: Static lists + dynamic service discovery (K8s, Consul)
 - **Experiment-Specific Limits**: CPU intensity, memory usage, network latency constraints
+- **Global Duration Ceiling**: `global.max_duration` caps every environment policy
+- **Run Confirmation**: Interactive `yes` prompt when global or environment policy sets `require_confirmation`; `--yes` skips it, non-interactive runs abort without it
 - **Comprehensive Violation Reporting**: Detailed context and remediation guidance
 - **Audit Logging**: Complete safety decision tracking for compliance
 - **Emergency Stop**: Immediate experiment termination capability

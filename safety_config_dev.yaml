@@ -3,7 +3,7 @@
 
 # Global safety settings
 global:
-  max_duration: 7200  # 2 hours - permissive for dev work
+  max_duration: 14400  # 4 hours - hard ceiling, permissive for dev work
   require_confirmation: false
   auto_detect_environment: true
 

@@ -1,9 +1,14 @@
 import json
 from datetime import datetime
+from pathlib import Path
 
 import pytest
 
 from safety import SafetyChecker
+
+ENTERPRISE_CONFIG = str(
+    Path(__file__).resolve().parent.parent / "safety_config_enterprise.yaml"
+)
 
 
 def violation_types(violations):
@@ -198,3 +203,66 @@ class TestAuditLog:
 
         entry = json.loads(log_file.read_text())
         assert entry["experiment"] == experiment
+
+
+class TestGlobalMaxDuration:
+    def test_global_ceiling_overrides_permissive_policy(
+        self, checker, config, experiment, in_test_env
+    ):
+        config["global"]["max_duration"] = 200
+        is_safe, violations = checker(config).is_safe_to_run(experiment)
+        assert not is_safe
+        assert violation_types(violations) == {"global_duration_exceeded"}
+
+    def test_policy_violation_not_duplicated(
+        self, checker, config, experiment, in_test_env
+    ):
+        config["global"]["max_duration"] = 200
+        experiment["duration"] = 900
+        _, violations = checker(config).is_safe_to_run(experiment)
+        assert violation_types(violations) == {"duration_exceeded"}
+
+    def test_duration_at_global_ceiling_is_allowed(
+        self, checker, config, experiment, in_test_env
+    ):
+        config["global"]["max_duration"] = 300
+        assert checker(config).is_safe_to_run(experiment)[0]
+
+    def test_no_global_limit(self, checker, config, experiment, in_test_env):
+        del config["global"]["max_duration"]
+        assert checker(config).is_safe_to_run(experiment)[0]
+
+    def test_validate_flags_policy_above_ceiling(self, checker, config):
+        config["global"]["max_duration"] = 500
+        issues = checker(config).validate_config()
+        assert issues == [
+            "test policy max_duration (600s) exceeds global max_duration (500s)"
+        ]
+
+
+class TestRequiresConfirmation:
+    @pytest.mark.parametrize(
+        "global_setting, policy_setting, expected",
+        [
+            (False, False, False),
+            (True, False, True),
+            (False, True, True),
+            (True, True, True),
+            (None, None, False),
+        ],
+    )
+    def test_either_setting_requires_it(
+        self, checker, config, in_test_env, global_setting, policy_setting, expected
+    ):
+        if global_setting is not None:
+            config["global"]["require_confirmation"] = global_setting
+        if policy_setting is not None:
+            config["environment_policies"]["test"]["require_confirmation"] = (
+                policy_setting
+            )
+        assert checker(config).requires_confirmation() is expected
+
+    def test_enterprise_test_env_requires_confirmation(self, in_test_env):
+        # Enterprise sets the test policy to false but global to true
+        safety = SafetyChecker(ENTERPRISE_CONFIG)
+        assert safety.requires_confirmation()

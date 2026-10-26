@@ -24,6 +24,7 @@ uv run python chaos_framework.py env-info
 # Maximum Duration: 7200 seconds
 # Allowed Experiment Types: ['*']
 # Protected Services: []
+# Global Maximum Duration: 7200 seconds
 # Require Confirmation: False
 ```
 

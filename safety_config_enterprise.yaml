@@ -3,7 +3,7 @@
 
 # Global safety settings
 global:
-  max_duration: 300  # 5 minutes - conservative for enterprise
+  max_duration: 3600  # 1 hour - hard ceiling over every environment policy
   require_confirmation: true
   auto_detect_environment: true
 

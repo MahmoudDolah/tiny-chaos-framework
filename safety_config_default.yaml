@@ -4,7 +4,7 @@
 # Global safety settings
 global:
   # Maximum experiment duration in seconds
-  max_duration: 600  # 10 minutes
+  max_duration: 7200  # 2 hours - hard ceiling over every environment policy
   # Require explicit confirmation for risky experiments
   require_confirmation: false
   # Enable environment auto-detection
