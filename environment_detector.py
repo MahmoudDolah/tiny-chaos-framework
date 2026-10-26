@@ -6,6 +6,7 @@ import logging
 import re
 from typing import Dict, Optional, Tuple
 
+
 class EnvironmentDetector:
     """Detects the current environment type using various detection methods."""
 
@@ -31,7 +32,7 @@ class EnvironmentDetector:
             "environment_variables": {},
             "cloud_provider": None,
             "cloud_metadata": {},
-            "matched_rules": []
+            "matched_rules": [],
         }
 
         # Try cloud provider detection first
@@ -86,12 +87,17 @@ class EnvironmentDetector:
                         metadata["instance_type"] = resp.text.strip()
 
                     # Get tags (requires IAM permissions)
-                    resp = requests.get(f"{metadata_url}tags/instance/", timeout=timeout)
+                    resp = requests.get(
+                        f"{metadata_url}tags/instance/", timeout=timeout
+                    )
                     if resp.status_code == 200:
                         tags = {}
-                        for tag in resp.text.strip().split('\n'):
+                        for tag in resp.text.strip().split("\n"):
                             if tag:
-                                tag_resp = requests.get(f"{metadata_url}tags/instance/{tag}", timeout=timeout)
+                                tag_resp = requests.get(
+                                    f"{metadata_url}tags/instance/{tag}",
+                                    timeout=timeout,
+                                )
                                 if tag_resp.status_code == 200:
                                     tags[tag] = tag_resp.text.strip()
                         metadata["tags"] = tags
@@ -110,8 +116,9 @@ class EnvironmentDetector:
         """Detect GCP environment and gather metadata."""
         try:
             headers = {"Metadata-Flavor": "Google"}
-            response = requests.get(f"{metadata_url}instance/id",
-                                  headers=headers, timeout=timeout)
+            response = requests.get(
+                f"{metadata_url}instance/id", headers=headers, timeout=timeout
+            )
 
             if response.status_code == 200:
                 metadata = {"instance_id": response.text.strip()}
@@ -119,14 +126,18 @@ class EnvironmentDetector:
                 # Try to get additional metadata
                 try:
                     # Get instance name
-                    resp = requests.get(f"{metadata_url}instance/name",
-                                      headers=headers, timeout=timeout)
+                    resp = requests.get(
+                        f"{metadata_url}instance/name", headers=headers, timeout=timeout
+                    )
                     if resp.status_code == 200:
                         metadata["instance_name"] = resp.text.strip()
 
                     # Get project ID
-                    resp = requests.get(f"{metadata_url}project/project-id",
-                                      headers=headers, timeout=timeout)
+                    resp = requests.get(
+                        f"{metadata_url}project/project-id",
+                        headers=headers,
+                        timeout=timeout,
+                    )
                     if resp.status_code == 200:
                         metadata["project_id"] = resp.text.strip()
 
@@ -144,9 +155,12 @@ class EnvironmentDetector:
         """Detect Azure environment and gather metadata."""
         try:
             headers = {"Metadata": "true"}
-            response = requests.get(f"{metadata_url}compute/vmId",
-                                  headers=headers, timeout=timeout,
-                                  params={"api-version": "2021-02-01", "format": "text"})
+            response = requests.get(
+                f"{metadata_url}compute/vmId",
+                headers=headers,
+                timeout=timeout,
+                params={"api-version": "2021-02-01", "format": "text"},
+            )
 
             if response.status_code == 200:
                 metadata = {"vm_id": response.text.strip()}
@@ -154,16 +168,22 @@ class EnvironmentDetector:
                 # Try to get additional metadata
                 try:
                     # Get VM name
-                    resp = requests.get(f"{metadata_url}compute/name",
-                                      headers=headers, timeout=timeout,
-                                      params={"api-version": "2021-02-01", "format": "text"})
+                    resp = requests.get(
+                        f"{metadata_url}compute/name",
+                        headers=headers,
+                        timeout=timeout,
+                        params={"api-version": "2021-02-01", "format": "text"},
+                    )
                     if resp.status_code == 200:
                         metadata["vm_name"] = resp.text.strip()
 
                     # Get resource group
-                    resp = requests.get(f"{metadata_url}compute/resourceGroupName",
-                                      headers=headers, timeout=timeout,
-                                      params={"api-version": "2021-02-01", "format": "text"})
+                    resp = requests.get(
+                        f"{metadata_url}compute/resourceGroupName",
+                        headers=headers,
+                        timeout=timeout,
+                        params={"api-version": "2021-02-01", "format": "text"},
+                    )
                     if resp.status_code == 200:
                         metadata["resource_group"] = resp.text.strip()
 
@@ -182,7 +202,9 @@ class EnvironmentDetector:
         if not self.config.get("environment_detection", {}).get("classification_rules"):
             return "default"
 
-        classification_rules = self.config["environment_detection"]["classification_rules"]
+        classification_rules = self.config["environment_detection"][
+            "classification_rules"
+        ]
         hostname = detection_details["hostname"]
 
         # Collect environment variables for matching
@@ -207,12 +229,14 @@ class EnvironmentDetector:
             if "hostname" in patterns:
                 for pattern in patterns["hostname"]:
                     if self._match_pattern(hostname, pattern):
-                        detection_details["matched_rules"].append({
-                            "rule": rule_name,
-                            "type": "hostname",
-                            "pattern": pattern,
-                            "value": hostname
-                        })
+                        detection_details["matched_rules"].append(
+                            {
+                                "rule": rule_name,
+                                "type": "hostname",
+                                "pattern": pattern,
+                                "value": hostname,
+                            }
+                        )
                         matched = True
                         break
 
@@ -223,12 +247,14 @@ class EnvironmentDetector:
                         key, expected_value = env_pattern.split("=", 1)
                         actual_value = os.environ.get(key)
                         if actual_value == expected_value:
-                            detection_details["matched_rules"].append({
-                                "rule": rule_name,
-                                "type": "environment_var",
-                                "pattern": env_pattern,
-                                "value": f"{key}={actual_value}"
-                            })
+                            detection_details["matched_rules"].append(
+                                {
+                                    "rule": rule_name,
+                                    "type": "environment_var",
+                                    "pattern": env_pattern,
+                                    "value": f"{key}={actual_value}",
+                                }
+                            )
                             matched = True
                             break
 
@@ -241,12 +267,14 @@ class EnvironmentDetector:
                     if "=" in tag_pattern:
                         key, expected_value = tag_pattern.split("=", 1)
                         if key in tags and tags[key] == expected_value:
-                            detection_details["matched_rules"].append({
-                                "rule": rule_name,
-                                "type": "cloud_tag",
-                                "pattern": tag_pattern,
-                                "value": f"{key}={tags[key]}"
-                            })
+                            detection_details["matched_rules"].append(
+                                {
+                                    "rule": rule_name,
+                                    "type": "cloud_tag",
+                                    "pattern": tag_pattern,
+                                    "value": f"{key}={tags[key]}",
+                                }
+                            )
                             matched = True
                             break
 

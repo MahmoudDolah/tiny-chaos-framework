@@ -3,6 +3,7 @@ import requests
 import logging
 from typing import Dict, List, Set
 
+
 class ServiceDiscovery:
     """Service discovery integration for identifying protected services."""
 
@@ -47,15 +48,19 @@ class ServiceDiscovery:
             # For now, we'll simulate by checking if we're in a K8s environment
             if self._is_kubernetes_environment():
                 # These would be discovered via K8s API calls
-                protected_services.extend([
-                    "kube-dns",
-                    "kube-proxy",
-                    "kubernetes-dashboard",
-                    "monitoring-prometheus",
-                    "monitoring-grafana"
-                ])
+                protected_services.extend(
+                    [
+                        "kube-dns",
+                        "kube-proxy",
+                        "kubernetes-dashboard",
+                        "monitoring-prometheus",
+                        "monitoring-grafana",
+                    ]
+                )
 
-                self.logger.debug(f"Kubernetes protected services: {protected_services}")
+                self.logger.debug(
+                    f"Kubernetes protected services: {protected_services}"
+                )
 
         except Exception as e:
             self.logger.warning(f"Failed to get Kubernetes protected services: {e}")
@@ -92,9 +97,10 @@ class ServiceDiscovery:
     def _is_kubernetes_environment(self) -> bool:
         """Check if we're running in a Kubernetes environment."""
         import os
+
         return (
-            os.path.exists("/var/run/secrets/kubernetes.io/serviceaccount") or
-            os.environ.get("KUBERNETES_SERVICE_HOST") is not None
+            os.path.exists("/var/run/secrets/kubernetes.io/serviceaccount")
+            or os.environ.get("KUBERNETES_SERVICE_HOST") is not None
         )
 
     def is_service_protected_by_discovery(self, service_name: str) -> bool:

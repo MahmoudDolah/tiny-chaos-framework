@@ -6,12 +6,15 @@ from typing import Dict, List, Tuple, Optional
 from environment_detector import EnvironmentDetector
 from service_discovery import ServiceDiscovery
 
+
 class SafetyViolation:
     """Represents a safety violation with details."""
+
     def __init__(self, violation_type: str, message: str, details: Dict = None):
         self.violation_type = violation_type
         self.message = message
         self.details = details or {}
+
 
 class SafetyChecker:
     def __init__(self, config_file: Optional[str] = None):
@@ -38,12 +41,14 @@ class SafetyChecker:
 
         if config_file and os.path.exists(config_file):
             try:
-                with open(config_file, 'r') as f:
+                with open(config_file, "r") as f:
                     config = yaml.safe_load(f)
                 self.logger.info(f"Loaded safety configuration from {config_file}")
                 return config
             except Exception as e:
-                self.logger.error(f"Failed to load safety config from {config_file}: {e}")
+                self.logger.error(
+                    f"Failed to load safety config from {config_file}: {e}"
+                )
 
         # Return minimal default configuration
         self.logger.warning("Using minimal default safety configuration")
@@ -55,9 +60,9 @@ class SafetyChecker:
                     "max_duration": 300,
                     "allowed_experiment_types": [],
                     "protected_services": ["*"],
-                    "require_confirmation": True
+                    "require_confirmation": True,
                 }
-            }
+            },
         }
 
     def is_safe_to_run(self, experiment: Dict) -> Tuple[bool, List[SafetyViolation]]:
@@ -80,40 +85,48 @@ class SafetyChecker:
 
         # Check if experiments are enabled in this environment
         if not policy.get("enabled", False):
-            violations.append(SafetyViolation(
-                "environment_disabled",
-                f"Chaos experiments are disabled in {environment_type} environment",
-                {"environment": environment_type, "policy": policy}
-            ))
+            violations.append(
+                SafetyViolation(
+                    "environment_disabled",
+                    f"Chaos experiments are disabled in {environment_type} environment",
+                    {"environment": environment_type, "policy": policy},
+                )
+            )
 
         # Check experiment type allowlist
         exp_type = experiment.get("type", "unknown")
         allowed_types = policy.get("allowed_experiment_types", [])
         if "*" not in allowed_types and exp_type not in allowed_types:
-            violations.append(SafetyViolation(
-                "experiment_type_forbidden",
-                f"Experiment type '{exp_type}' not allowed in {environment_type} environment",
-                {"experiment_type": exp_type, "allowed_types": allowed_types}
-            ))
+            violations.append(
+                SafetyViolation(
+                    "experiment_type_forbidden",
+                    f"Experiment type '{exp_type}' not allowed in {environment_type} environment",
+                    {"experiment_type": exp_type, "allowed_types": allowed_types},
+                )
+            )
 
         # Check duration limits
         duration = experiment.get("duration", 0)
         max_duration = policy.get("max_duration", 0)
         if duration > max_duration:
-            violations.append(SafetyViolation(
-                "duration_exceeded",
-                f"Experiment duration {duration}s exceeds maximum allowed {max_duration}s for {environment_type}",
-                {"duration": duration, "max_duration": max_duration}
-            ))
+            violations.append(
+                SafetyViolation(
+                    "duration_exceeded",
+                    f"Experiment duration {duration}s exceeds maximum allowed {max_duration}s for {environment_type}",
+                    {"duration": duration, "max_duration": max_duration},
+                )
+            )
 
         # Check protected services
         target_service = experiment.get("target", {}).get("service", "unknown")
         if self._is_protected_service(target_service, policy):
-            violations.append(SafetyViolation(
-                "protected_service",
-                f"Service '{target_service}' is protected and cannot be targeted for chaos experiments",
-                {"service": target_service, "environment": environment_type}
-            ))
+            violations.append(
+                SafetyViolation(
+                    "protected_service",
+                    f"Service '{target_service}' is protected and cannot be targeted for chaos experiments",
+                    {"service": target_service, "environment": environment_type},
+                )
+            )
 
         # Check experiment-specific parameters
         param_violations = self._check_experiment_parameters(experiment)
@@ -172,7 +185,7 @@ class SafetyChecker:
             "max_duration": 0,
             "allowed_experiment_types": [],
             "protected_services": ["*"],
-            "require_confirmation": True
+            "require_confirmation": True,
         }
 
     def _is_protected_service(self, service_name: str, policy: Dict) -> bool:
@@ -206,11 +219,13 @@ class SafetyChecker:
                 intensity = experiment.get("intensity", 100)
                 max_intensity = type_config.get("max_intensity", 100)
                 if intensity > max_intensity:
-                    violations.append(SafetyViolation(
-                        "cpu_intensity_exceeded",
-                        f"CPU intensity {intensity}% exceeds maximum {max_intensity}%",
-                        {"intensity": intensity, "max_intensity": max_intensity}
-                    ))
+                    violations.append(
+                        SafetyViolation(
+                            "cpu_intensity_exceeded",
+                            f"CPU intensity {intensity}% exceeds maximum {max_intensity}%",
+                            {"intensity": intensity, "max_intensity": max_intensity},
+                        )
+                    )
 
             elif exp_type == "memory_exhaust":
                 memory_mb = experiment.get("memory_mb", 0)
@@ -219,34 +234,45 @@ class SafetyChecker:
 
                 # Basic validation - check if memory amount seems reasonable
                 if memory_mb > 32768:  # 32GB seems excessive for most tests
-                    violations.append(SafetyViolation(
-                        "memory_amount_excessive",
-                        f"Memory allocation {memory_mb}MB seems excessive",
-                        {"memory_mb": memory_mb}
-                    ))
+                    violations.append(
+                        SafetyViolation(
+                            "memory_amount_excessive",
+                            f"Memory allocation {memory_mb}MB seems excessive",
+                            {"memory_mb": memory_mb},
+                        )
+                    )
 
             elif exp_type == "network_latency":
                 latency_ms = experiment.get("latency_ms", 0)
                 max_latency = type_config.get("max_latency_ms", 5000)
                 if latency_ms > max_latency:
-                    violations.append(SafetyViolation(
-                        "network_latency_exceeded",
-                        f"Network latency {latency_ms}ms exceeds maximum {max_latency}ms",
-                        {"latency_ms": latency_ms, "max_latency_ms": max_latency}
-                    ))
+                    violations.append(
+                        SafetyViolation(
+                            "network_latency_exceeded",
+                            f"Network latency {latency_ms}ms exceeds maximum {max_latency}ms",
+                            {"latency_ms": latency_ms, "max_latency_ms": max_latency},
+                        )
+                    )
 
                 interface = experiment.get("interface", "")
                 allowed_interfaces = type_config.get("allowed_interfaces", [])
                 if allowed_interfaces and interface not in allowed_interfaces:
-                    violations.append(SafetyViolation(
-                        "interface_not_allowed",
-                        f"Network interface '{interface}' not in allowed list",
-                        {"interface": interface, "allowed_interfaces": allowed_interfaces}
-                    ))
+                    violations.append(
+                        SafetyViolation(
+                            "interface_not_allowed",
+                            f"Network interface '{interface}' not in allowed list",
+                            {
+                                "interface": interface,
+                                "allowed_interfaces": allowed_interfaces,
+                            },
+                        )
+                    )
 
         return violations
 
-    def _log_safety_decision(self, experiment: Dict, environment: str, violations: List[SafetyViolation]):
+    def _log_safety_decision(
+        self, experiment: Dict, environment: str, violations: List[SafetyViolation]
+    ):
         """Log safety decision for audit purposes."""
         try:
             audit_config = self.config.get("audit", {})
@@ -264,11 +290,14 @@ class SafetyChecker:
                 "experiment_type": experiment.get("type", "unknown"),
                 "environment": environment,
                 "safe": len(violations) == 0,
-                "violations": [{
-                    "type": v.violation_type,
-                    "message": v.message,
-                    "details": v.details
-                } for v in violations]
+                "violations": [
+                    {
+                        "type": v.violation_type,
+                        "message": v.message,
+                        "details": v.details,
+                    }
+                    for v in violations
+                ],
             }
 
             if audit_config.get("include_experiment_details", False):
@@ -289,7 +318,7 @@ class SafetyChecker:
             "environment_type": environment_type,
             "environment_details": env_details,
             "policy": policy,
-            "protected_services": list(self.service_discovery.get_protected_services())
+            "protected_services": list(self.service_discovery.get_protected_services()),
         }
 
     def validate_config(self) -> List[str]:
